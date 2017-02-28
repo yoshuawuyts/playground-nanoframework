@@ -4,6 +4,7 @@ var nanostack = require('nanostack')
 var nanomorph = require('nanomorph')
 var nanotick = require('nanotick')
 var nanoraf = require('nanoraf')
+function noop () {}
 
 module.exports = Framework
 
@@ -33,13 +34,18 @@ Framework.router = function (opts, routes) {
 }
 
 Framework.start = function () {
-  var html = this._render()
-  return html
+  return this._render()
+}
+
+Framework.toString = function (location, state) {
+  state = state || {}
+  return this._router(location, state, noop)
 }
 
 Framework._render = function () {
   var self = this
   var tree = this._router(window.location.pathname, self._state, send)
+
   var render = nanoraf(function (state) {
     var newTree = self._router(window.location.pathname, state, send)
     nanomorph(newTree, tree)
@@ -49,8 +55,10 @@ Framework._render = function () {
 
   function send (name, data) {
     var ctx = {
-      name: name,
-      data: data
+      action: {
+        name: name,
+        data: data
+      }
     }
 
     self._tick(function () {
