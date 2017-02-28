@@ -1,0 +1,28 @@
+{
+  "name": "playground-nanoframework",
+  "description": "Building tiny frameworks yo",
+  "repository": "yoshuawuyts/playground-nanoframework",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "deps": "dependency-check . && dependency-check . --extra --no-dev",
+    "start": "node .",
+    "test": "standard && npm run deps && nyc node test.js",
+    "coverage": "nyc report --reporter=text-lcov > coverage.lcov"
+  },
+  "dependencies": {
+    "document-ready": "^1.0.3",
+    "nanomorph": "^2.1.3",
+    "nanoraf": "^2.1.3",
+    "nanostack": "^1.0.2",
+    "nanotick": "^1.1.5",
+    "sheet-router": "^4.2.3",
+    "xtend": "^4.0.1"
+  },
+  "devDependencies": {
+    "dependency-check": "^2.8.0",
+    "nyc": "^10.1.2",
+    "standard": "^8.6.0",
+    "tape": "^4.6.3"
+  }
+}
