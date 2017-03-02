@@ -1,25 +1,36 @@
 var html = require('./html')
 var choo = require('./')
 
-var state = { count: 1 }
-var app = choo()
-app.router([ '/', mainView ])
+var opts = {
+  state: { count: 0 },
+  location: window.location.href
+}
 
-var tree = app.start()
-document.body.appendChild(tree)
+var routes = [ '/', mainView ]
 
-function mainView () {
-  console.log(state)
+var app = choo(opts)
+app.use(architecture)
+app.router(routes)
+app.mount('body')
+
+function mainView (state, send) {
   return html`
-    <section>
+    <body>
       <h1>Mutable state example</h1>
       <button onclick=${onclick}>
         Count: ${state.count}
       </button>
-    </section>
+    </body>
   `
+
   function onclick () {
-    state.count += 1
-    console.log(state)
+    send('count:increment', 1)
   }
+}
+
+function architecture (ctx, next) {
+  next(null, function (err, val, next) {
+    if (err) throw err
+    next()
+  })
 }

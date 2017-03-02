@@ -14,7 +14,7 @@
     "bel": "^4.5.1",
     "document-ready": "^1.0.3",
     "nanomorph": "^2.1.3",
-    "nanoraf": "^2.1.3",
+    "nanoraf": "^3.0.0",
     "nanorouter": "^1.0.0",
     "nanostack": "^1.0.2",
     "nanotick": "^1.1.5",
