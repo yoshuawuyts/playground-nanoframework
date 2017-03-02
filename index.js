@@ -16,11 +16,11 @@ function Framework () {
   this._state = {}
 }
 
-Framework.use = function (fn) {
+Framework.prototype.use = function (fn) {
   this.stack.push(fn)
 }
 
-Framework.source = function (fn) {
+Framework.prototype.source = function (fn) {
   var self = this
   documentReady(function () {
     fn(function (ctx, cb) {
@@ -29,20 +29,20 @@ Framework.source = function (fn) {
   })
 }
 
-Framework.router = function (opts, routes) {
+Framework.prototype.router = function (opts, routes) {
   this._router = nanorouter(opts, routes)
 }
 
-Framework.start = function () {
+Framework.prototype.start = function () {
   return this._render()
 }
 
-Framework.toString = function (location, state) {
+Framework.prototype.toString = function (location, state) {
   state = state || {}
   return this._router(location, state, noop)
 }
 
-Framework._render = function () {
+Framework.prototype._render = function () {
   var self = this
   var tree = this._router(window.location.pathname, self._state, send)
 
