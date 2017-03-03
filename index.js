@@ -2,135 +2,106 @@ var documentReady = require('document-ready')
 var walkRouter = require('nanorouter/walk')
 var nanorouter = require('nanorouter')
 var mutate = require('xtend/mutable')
-var nanostack = require('nanostack')
 var nanomorph = require('nanomorph')
 var nanotick = require('nanotick')
 var nanoraf = require('nanoraf')
+var nanobus = require('nanobus')
 var assert = require('assert')
 function noop () {}
 
 module.exports = Framework
 
-function Framework (opts) {
-  if (!(this instanceof Framework)) return new Framework(opts)
-  opts = opts || {}
-  this._stack = nanostack()
-  this._tick = nanotick()
-  this._router = null
-  this._tree = null
-  this._state = opts.state || {}
-}
+function Framework () {
+  // if (!(this instanceof Framework)) return new Framework()
+  var tick = nanotick()
+  var bus = nanobus()
+  var rerender = null
+  var router = null
+  var tree = null
+  var state = {}
 
-Framework.prototype.use = function (fn) {
-  if (fn.source) this.source(fn.source)
-  if (fn.state) this._state = fn.state
-  if (fn.middleware) fn = fn.middleware
-  this._stack.push(fn)
-  return this
-}
+  return {
+    router: createRouter,
+    model: createModel,
+    mount: mount,
+    toString: toString
+  }
 
-Framework.prototype.source = function (fn) {
-  var self = this
-  documentReady(function () {
-    fn(function (ctx, cb) {
-      self._stack.walk(ctx, cb)
-    })
-  })
-  return this
-}
+  function createRouter (opts, routes) {
+    if (!routes) {
+      routes = opts
+      opts = {}
+    }
 
-Framework.prototype.router = function (opts, routes) {
-  this._router = this._createRouter(opts, routes)
-  return this
-}
+    var routerOpts = mutate({ thunk: 'match' }, opts)
+    router = nanorouter(routerOpts, routes)
 
-Framework.prototype.start = function () {
-  return this._render()
-}
+    walkRouter(router, wrap)
 
-Framework.prototype.mount = function (selector) {
-  var tree = this.start()
-  var self = this
-
-  documentReady(function onReady () {
-    var root = document.querySelector(selector)
-    assert.ok(root, 'could not query selector: ' + selector)
-
-    // copy script tags from the old tree to the new tree so
-    // we can pass a <body> element straight up
-    if (root.nodeName === 'BODY') {
-      var children = root.childNodes
-      for (var i = 0; i < children.length; i++) {
-        if (children[i].nodeName === 'SCRIPT') {
-          tree.appendChild(children[i].cloneNode(true))
+    function wrap (route, handler) {
+      return function chooWrap (params) {
+        return function (state, send) {
+          // state.location.params = params
+          return handler(state, send)
         }
       }
     }
+  }
 
-    self._tree = nanomorph(tree, root)
-    assert.equal(self._tree, root, 'choo/mount: The new node root ' +
-      self._tree.outerHTML.nodeName + ' is not the same type as ' +
-      tree.outerHTML.nodeName + '. Choo cannot begin diffing.' +
-      ' Make sure the same initial tree is rendered in the browser' +
-      ' as on the server. Check out the choo handbook for more information')
-  })
-}
+  function createModel (cb) {
+    cb(state, bus)
+  }
 
-Framework.prototype.toString = function (location, state) {
-  state = state || {}
-  return this._router(location, state, noop)
-}
+  function start () {
+    var send = tick(_send)
+    tree = router(window.location.pathname, state, send)
 
-Framework.prototype._render = function () {
-  var self = this
+    rerender = nanoraf(function (state) {
+      var send = tick(_send)
+      var newTree = router(window.location.pathname, state, send)
+      tree = nanomorph(newTree, tree)
+    })
 
-  var send = this._tick(_send)
-  this._tree = this._router(window.location.pathname, this._state, send)
+    bus.on('render', function () {
+      rerender(state)
+    })
 
-  this._rerender = nanoraf(function (state) {
-    var send = self._tick(_send)
-    var newTree = self._router(window.location.pathname, state, send)
-    self._tree = nanomorph(newTree, self._tree)
-  })
+    return tree
 
-  return this._tree
-
-  function _send (name, data) {
-    var action = {
-      name: name,
-      data: data
+    function _send (eventName, data) {
+      bus.emit(eventName, data)
     }
+  }
 
-    var ctx = {
-      state: self._state,
-      action: action
-    }
+  function mount (selector) {
+    var newTree = start()
 
-    self._stack.walk(ctx, function (err, val, next) {
-      if (err) throw err
-      self._rerender(self._state)
-      next()
+    documentReady(function onReady () {
+      var root = document.querySelector(selector)
+      assert.ok(root, 'could not query selector: ' + selector)
+
+      // copy script tags from the old tree to the new tree so
+      // we can pass a <body> element straight up
+      if (root.nodeName === 'BODY') {
+        var children = root.childNodes
+        for (var i = 0; i < children.length; i++) {
+          if (children[i].nodeName === 'SCRIPT') {
+            tree.appendChild(children[i].cloneNode(true))
+          }
+        }
+      }
+
+      tree = nanomorph(newTree, root)
+      assert.equal(tree, root, 'choo/mount: The new node root ' +
+        tree.outerHTML.nodeName + ' is not the same type as ' +
+        root.outerHTML.nodeName + '. Choo cannot begin diffing.' +
+        ' Make sure the same initial tree is rendered in the browser' +
+        ' as on the server. Check out the choo handbook for more information')
     })
   }
-}
 
-Framework.prototype._createRouter = function (opts, routes) {
-  if (!routes) {
-    routes = opts
-    opts = {}
-  }
-  var routerOpts = mutate({ thunk: 'match' }, opts)
-  var router = nanorouter(routerOpts, routes)
-
-  walkRouter(router, wrap)
-  return router
-
-  function wrap (route, handler) {
-    return function chooWrap (params) {
-      return function (state, send) {
-        // state.location.params = params
-        return handler(state, send)
-      }
-    }
+  function toString (location, state) {
+    state = state || {}
+    return router(location, state, noop)
   }
 }
