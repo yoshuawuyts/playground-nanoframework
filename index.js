@@ -4,6 +4,7 @@ var walkRouter = require('nanorouter/walk')
 var onHref = require('nanorouter/href')
 var nanorouter = require('nanorouter')
 var mutate = require('xtend/mutable')
+var nanomount = require('nanomount')
 var nanomorph = require('nanomorph')
 var nanotick = require('nanotick')
 var nanoraf = require('nanoraf')
@@ -54,27 +55,30 @@ function Framework (opts) {
   }
 
   function start () {
-    tree = router(window.location.pathname, state, tick(emit))
+    tree = router(createLocation(), state, tick(emit))
     rerender = nanoraf(function () {
-      var newTree = router(window.location.pathname, state, tick(emit))
-      tree = nanomorph(newTree, tree)
+      var newTree = router(createLocation(), state, tick(emit))
+      tree = nanomorph(tree, newTree)
     })
 
     bus.on('render', rerender)
 
     if (opts.history !== false) {
-      onHistoryChange(scrollIntoView)
-      bus.on('pushState', function (href) {
-        window.history.pushState({}, null, href)
+      onHistoryChange(function (href) {
+        bus.emit('pushState', window.location.href)
         scrollIntoView()
       })
-    }
 
-    if (opts.href !== false) {
-      onHref(function (href) {
-        var currHref = window.location.href
-        if (href !== currHref) bus.emit('pushState')
-      })
+      if (opts.href !== false) {
+        onHref(function (href) {
+          var currHref = window.location.href
+          if (href === currHref) return
+          window.history.pushState({}, null, href)
+          bus.emit('pushState', window.location.href)
+          bus.emit('render')
+          scrollIntoView()
+        })
+      }
     }
 
     documentReady(function () {
@@ -83,16 +87,6 @@ function Framework (opts) {
 
     return tree
 
-    function scrollIntoView () {
-      var hash = window.location.hash
-      if (hash) {
-        try {
-          var el = document.querySelector(hash)
-          if (el) el.scrollIntoView(true)
-        } catch (e) {}
-      }
-    }
-
     function emit (eventName, data) {
       bus.emit(eventName, data)
     }
@@ -100,28 +94,11 @@ function Framework (opts) {
 
   function mount (selector) {
     var newTree = start()
-
     documentReady(function () {
       var root = document.querySelector(selector)
       assert.ok(root, 'could not query selector: ' + selector)
-
-      // copy script tags from the old tree to the new tree so
-      // we can pass a <body> element straight up
-      if (root.nodeName === 'BODY') {
-        var children = root.childNodes
-        for (var i = 0; i < children.length; i++) {
-          if (children[i].nodeName === 'SCRIPT') {
-            tree.appendChild(children[i].cloneNode(true))
-          }
-        }
-      }
-
-      tree = nanomorph(newTree, root)
-      assert.equal(tree, root, 'choo/mount: The new node root ' +
-        tree.outerHTML.nodeName + ' is not the same type as ' +
-        root.outerHTML.nodeName + '. Choo cannot begin diffing.' +
-        ' Make sure the same initial tree is rendered in the browser' +
-        ' as on the server. Check out the choo handbook for more information')
+      nanomount(root, newTree)
+      tree = root
     })
   }
 
@@ -129,4 +106,18 @@ function Framework (opts) {
     state = state || {}
     return router(location, state)
   }
+}
+
+function scrollIntoView () {
+  var hash = window.location.hash
+  if (hash) {
+    try {
+      var el = document.querySelector(hash)
+      if (el) el.scrollIntoView(true)
+    } catch (e) {}
+  }
+}
+
+function createLocation () {
+  return window.location.pathname + window.location.hash
 }

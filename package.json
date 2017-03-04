@@ -13,8 +13,10 @@
   "dependencies": {
     "bel": "^4.5.1",
     "document-ready": "^1.0.3",
+    "morphdom": "^2.3.1",
     "nanobus": "^1.0.0",
-    "nanomorph": "^2.1.3",
+    "nanomorph": "^3.0.0",
+    "nanomount": "^1.0.0",
     "nanoraf": "^3.0.0",
     "nanorouter": "^1.0.0",
     "nanotick": "^1.1.6",
