@@ -11,6 +11,7 @@ css('todomvc-app-css/index.css')
 
 var app = choo()
 app.model(require('./models/todos')())
+app.model(log)
 app.router([ '/', mainView ])
 app.mount('body')
 
@@ -30,4 +31,14 @@ function mainView (state, emit) {
       </footer>
     </body>
   `
+}
+
+function log (state, bus) {
+  bus.on('*', function (eventName, data) {
+    var date = new Date()
+    var now = date.getHours() +
+      ':' + date.getMinutes() +
+      ':' + date.getSeconds()
+    console.log(now + ' ✨ ' + eventName)
+  })
 }

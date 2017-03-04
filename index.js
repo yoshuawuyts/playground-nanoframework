@@ -70,7 +70,8 @@ function Framework (opts) {
       })
 
       if (opts.href !== false) {
-        onHref(function (href) {
+        onHref(function (location) {
+          var href = location.href
           var currHref = window.location.href
           if (href === currHref) return
           window.history.pushState({}, null, href)
