@@ -35,7 +35,6 @@ app.router([ '/', mainView ])
 app.mount('body')
 
 function mainView (state, emit) {
-  console.log('state', state)
   return html`
     <body>
       <h1>count is ${state.count}</h1>
