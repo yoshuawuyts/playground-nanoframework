@@ -25,7 +25,7 @@ function todos () {
 
     function add (data) {
       var newItem = {
-        id: state.counter,
+        id: localState.counter,
         name: data.name,
         done: false
       }
@@ -35,46 +35,59 @@ function todos () {
       bus.emit('render')
     }
 
-    function toggle (data) {
+    function toggle (id) {
       localState.items = localState.items.map(function (todo) {
-        return (todo.id === data.id)
+        return (todo.id === id)
           ? xtend({}, todo, { done: !todo.done })
           : todo
       })
       bus.emit('render')
     }
 
-    function edit (data) {
-      localState.editing = data.id
+    function edit (id) {
+      localState.editing = id
       bus.emit('render')
     }
 
-    function cancelEditing (data) {
+    function cancelEditing () {
       localState.editing = null
       bus.emit('render')
     }
 
     function update (data) {
       localState.editing = null
-      localState.items = localState.items.map(function (todo) {
-        return (todo.id === data.id)
-          ? xtend({}, todo, { name: data.name })
-          : todo
-      })
+      var todos = localState.items
+      for (var i = 0, len = todos.length; i < len; i++) {
+        var todo = todos[i]
+        if (todo.id !== data.id) continue
+        todo.name = data.name
+        break
+      }
       bus.emit('render')
     }
 
-    function destroy (data) {
-      localState.items = localState.items.filter(function (todo) {
-        return (todo.id !== data.id)
-      })
+    function destroy (id) {
+      var todos = localState.items
+      for (var i = 0, len = todos.length; i < len; i++) {
+        var todo = todos[i]
+        if (todo.id === id) {
+          todos.splice(i, 1)
+          break
+        }
+      }
       bus.emit('render')
     }
 
     function clearCompleted (data) {
-      localState.items = localState.items.filter(function (todo) {
-        return !todo.done
-      })
+      var todos = localState.items
+      for (var i = 0, len = todos.length; i < len; i++) {
+        var todo = todos[i]
+        if (todo.done) {
+          todos.splice(i, 1)
+          len--
+          i--
+        }
+      }
       bus.emit('render')
     }
 
@@ -83,7 +96,7 @@ function todos () {
         return todo.done
       }).length === localState.items.length
 
-      localState.items = state.items.map(function (todo) {
+      localState.items = localState.items.map(function (todo) {
         return xtend({}, todo, { done: !allDone })
       })
 

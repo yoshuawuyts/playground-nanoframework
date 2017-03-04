@@ -28,11 +28,11 @@ function todoItem (todo, editing, emit) {
   `
 
   function toggle (e) {
-    emit('todos:toggle', { id: todo.id })
+    emit('todos:toggle', todo.id)
   }
 
   function edit (e) {
-    emit('todos:edit', { id: todo.id })
+    emit('todos:edit', todo.id)
   }
 
   function destroy (e) {
@@ -44,19 +44,14 @@ function todoItem (todo, editing, emit) {
   }
 
   function handleEditKeydown (e) {
-    if (e.keyCode === 13) { // Enter
-      update(e)
-    } else if (e.code === 27) { // Escape
-      emit('todos:cancelEditing')
-    }
+    if (e.keyCode === 13) update(e) // Enter
+    else if (e.code === 27) emit('todos:cancelEditing') // Escape
   }
 }
 
 function classList (classes) {
   return Object.keys(classes).reduce(function (acc, k) {
-    if (classes[k]) {
-      acc.push(k)
-    }
+    if (classes[k]) acc.push(k)
     return acc
   }, []).join(' ')
 }

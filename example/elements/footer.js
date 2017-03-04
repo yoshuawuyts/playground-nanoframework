@@ -28,11 +28,15 @@ function footer (state, emit) {
 }
 
 function filterButton (name, filter, currentFilter, emit) {
-  var klass = filter === currentFilter ? 'selected' : ''
+  var filterClass = (filter === currentFilter)
+    ? 'selected'
+    : ''
 
+  var uri = '#' + name.toLowerCase()
+  if (uri === '#all') uri = '/'
   return html`
     <li>
-      <a href="#" class=${klass} onclick=${applyFilter}>
+      <a href=${uri} class=${filterClass} onclick=${applyFilter}>
         ${name}
       </a>
     </li>

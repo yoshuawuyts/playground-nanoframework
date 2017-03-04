@@ -1,3 +1,5 @@
+var nanologger = require('nanologger')
+var mutate = require('xtend/mutable')
 var html = require('../html')
 var css = require('sheetify')
 var choo = require('../')
@@ -10,9 +12,15 @@ css('todomvc-common/base.css')
 css('todomvc-app-css/index.css')
 
 var app = choo()
-app.model(require('./models/todos')())
+app.model(persist)
+app.model(expose)
 app.model(log)
-app.router([ '/', mainView ])
+app.model(require('./models/todos')())
+app.router([
+  ['/', mainView],
+  ['#active', mainView],
+  ['#completed', mainView]
+])
 app.mount('body')
 
 function mainView (state, emit) {
@@ -33,12 +41,35 @@ function mainView (state, emit) {
   `
 }
 
-function log (state, bus) {
+function persist (state, bus) {
+  var savedState = JSON.parse(window.localStorage.getItem('choo-todomvc'))
+  mutate(state, savedState)
+
   bus.on('*', function (eventName, data) {
-    var date = new Date()
-    var now = date.getHours() +
-      ':' + date.getMinutes() +
-      ':' + date.getSeconds()
-    console.log(now + ' ✨ ' + eventName)
+    window.localStorage.setItem('choo-todomvc', JSON.stringify(state))
   })
+}
+
+function log (state, bus) {
+  var log = nanologger('choo')
+
+  window.getState = function () {
+    console.log(state)
+  }
+
+  bus.on('*', function (eventName, data) {
+    log.info(eventName)
+  })
+}
+
+function expose (state, bus) {
+  window.choo = {}
+  window.choo.state = state
+  window.choo.emit = function (eventName, data) {
+    bus.emit(eventName, data)
+  }
+
+  window.choo.on = function (eventName, listener) {
+    bus.on(eventName, listener)
+  }
 }
