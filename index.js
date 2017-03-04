@@ -12,7 +12,6 @@ function noop () {}
 module.exports = Framework
 
 function Framework () {
-  // if (!(this instanceof Framework)) return new Framework()
   var tick = nanotick()
   var bus = nanobus()
   var rerender = null
@@ -41,7 +40,7 @@ function Framework () {
     function wrap (route, handler) {
       return function chooWrap (params) {
         return function (state, send) {
-          // state.location.params = params
+          state.params = params
           return handler(state, send)
         }
       }
@@ -66,6 +65,10 @@ function Framework () {
       rerender(state)
     })
 
+    documentReady(function () {
+      bus.emit('documentReady')
+    })
+
     return tree
 
     function _send (eventName, data) {
@@ -76,7 +79,7 @@ function Framework () {
   function mount (selector) {
     var newTree = start()
 
-    documentReady(function onReady () {
+    documentReady(function () {
       var root = document.querySelector(selector)
       assert.ok(root, 'could not query selector: ' + selector)
 

@@ -13,21 +13,39 @@ tweet](./a-can-of-kanye/screenshot.png)
 
 ## Usage
 ```js
-var framework = require('./framework')
-var architecture = require('some-architecture')
+var html = require('./html')
+var choo = require('./')
 
-var app = framework()
-var logic = architecture(require('./application-logic')
-app.use(logic)
+var app = choo()
 
-app.source(require('./websockets'))
-app.source(require('./keyboard'))
+app.model(function (state, bus) {
+  state.count = 0
+
+  bus.on('*', function () {
+    console.log('arguments', arguments)
+  })
+
+  bus.on('increment', function (count) {
+    state.count += count
+    bus.emit('render')
+  })
+})
 
 app.router([ '/', mainView ])
 app.mount('body')
 
-function mainView (state, send) {
-  return html`<body>hello world</body>`
+function mainView (state, emit) {
+  console.log('state', state)
+  return html`
+    <body>
+      <h1>count is ${state.count}</h1>
+      <button onclick=${onclick}>Increment</button>
+    </body>
+  `
+
+  function onclick () {
+    emit('increment', 1)
+  }
 }
 ```
 
@@ -35,13 +53,8 @@ function mainView (state, send) {
 ### app = framework()
 Create a new instance
 
-### app.use()
-Register a new [nanostack](https://github.com/yoshuawuyts/nanostack) middleware
-
-### app.source(walkFn(ctx, cb))
-Register a new `stack.walk` function to walk the stack. Useful to handle
-external events with like keyboard or websockets. These are started after the
-application is done loading
+### app.model(callback(state, emit))
+Create a new model
 
 ### app.router([opts], routes)
 Register a router
