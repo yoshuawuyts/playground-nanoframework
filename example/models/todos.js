@@ -1,5 +1,3 @@
-var xtend = require('xtend')
-
 module.exports = todos
 
 function todos () {
@@ -36,11 +34,14 @@ function todos () {
     }
 
     function toggle (id) {
-      localState.items = localState.items.map(function (todo) {
-        return (todo.id === id)
-          ? xtend({}, todo, { done: !todo.done })
-          : todo
-      })
+      var todos = localState.items
+      for (var i = 0, len = todos.length; i < len; i++) {
+        var todo = todos[i]
+        if (todo.id === id) {
+          todo.done = !todo.done
+          break
+        }
+      }
       bus.emit('render')
     }
 
@@ -59,9 +60,10 @@ function todos () {
       var todos = localState.items
       for (var i = 0, len = todos.length; i < len; i++) {
         var todo = todos[i]
-        if (todo.id !== data.id) continue
-        todo.name = data.name
-        break
+        if (todo.id === data.id) {
+          todo.name = data.name
+          break
+        }
       }
       bus.emit('render')
     }
@@ -92,13 +94,19 @@ function todos () {
     }
 
     function toggleAll (data) {
-      var allDone = localState.items.filter(function (todo) {
-        return todo.done
-      }).length === localState.items.length
+      var todos = localState.items
 
-      localState.items = localState.items.map(function (todo) {
-        return xtend({}, todo, { done: !allDone })
-      })
+      var doneCount = 0
+      for (var i = 0, ilen = todos.length; i < ilen; i++) {
+        var itodo = todos[i]
+        if (itodo.done) doneCount++
+      }
+      var allDone = (doneCount === todos.length)
+
+      for (var j = 0, jlen = todos.length; j < jlen; j++) {
+        var jtodo = todos[j]
+        jtodo.done = !allDone
+      }
 
       bus.emit('render')
     }

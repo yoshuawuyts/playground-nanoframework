@@ -36,7 +36,7 @@ function todoItem (todo, editing, emit) {
   }
 
   function destroy (e) {
-    emit('todos:destroy', { id: todo.id })
+    emit('todos:destroy', todo.id)
   }
 
   function update (e) {
@@ -50,8 +50,12 @@ function todoItem (todo, editing, emit) {
 }
 
 function classList (classes) {
-  return Object.keys(classes).reduce(function (acc, k) {
-    if (classes[k]) acc.push(k)
-    return acc
-  }, []).join(' ')
+  var str = ''
+  var keys = Object.keys(classes)
+  for (var i = 0, len = keys.length; i < len; i++) {
+    var key = keys[i]
+    var val = classes[key]
+    if (val) str += (key + ' ')
+  }
+  return str
 }

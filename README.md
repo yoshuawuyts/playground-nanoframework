@@ -62,7 +62,10 @@ Register a router
 Start the application
 
 ### app.mount(selector)
-Mount the application on the given `querySelector` (tbi)
+Start the application and mount it on the given `querySelector`
+
+### domNode = app.start()
+Start the application. Returns a DOM node.
 
 ### app.toString(location, [state])
 Render the application to a string. Useful for rendering on the server
