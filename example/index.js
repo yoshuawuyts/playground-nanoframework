@@ -25,6 +25,7 @@ app.mount('body')
 
 function mainView (state, emit) {
   var todos = state.todos
+  emit('log:debug', 'Rendering main view')
   return html`
     <body>
       <section class="todoapp">
@@ -58,8 +59,33 @@ function log (state, bus) {
   }
 
   bus.on('*', function (eventName, data) {
-    log.info(eventName)
+    if (!/^log:\w{1,6}/.test(eventName)) log.info(eventName)
   })
+
+  bus.on('log:debug', function (data) {
+    log.debug(stringify(data))
+  })
+
+  bus.on('log:info', function (data) {
+    log.info(stringify(data))
+  })
+
+  bus.on('log:warn', function (data) {
+    log.warn(stringify(data))
+  })
+
+  bus.on('log:error', function (data) {
+    log.error(stringify(data))
+  })
+
+  bus.on('log:fatal', function (data) {
+    log.fatal(stringify(data))
+  })
+
+  function stringify (data) {
+    if (typeof data === 'string') return data
+    return JSON.stringify(data)
+  }
 }
 
 function expose (state, bus) {

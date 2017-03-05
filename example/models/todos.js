@@ -9,17 +9,22 @@ function todos () {
       localState.counter = 0
       localState.filter = ''
       localState.items = []
+      localState.hasDone = false
+      localState.activeCount = 0
     }
 
-    bus.on('todos:add', add)
-    bus.on('todos:toggle', toggle)
-    bus.on('todos:edit', edit)
-    bus.on('todos:cancelEditing', cancelEditing)
-    bus.on('todos:update', update)
-    bus.on('todos:destroy', destroy)
-    bus.on('todos:clearCompleted', clearCompleted)
-    bus.on('todos:toggleAll', toggleAll)
-    bus.on('todos:filter', filter)
+    bus.on('DOMContentLoaded', function () {
+      bus.emit('log:debug', 'Loading todos model')
+      bus.on('todos:add', add)
+      bus.on('todos:toggle', toggle)
+      bus.on('todos:edit', edit)
+      bus.on('todos:cancelEditing', cancelEditing)
+      bus.on('todos:update', update)
+      bus.on('todos:destroy', destroy)
+      bus.on('todos:clearCompleted', clearCompleted)
+      bus.on('todos:toggleAll', toggleAll)
+      bus.on('todos:filter', filter)
+    })
 
     function add (data) {
       var newItem = {
@@ -27,6 +32,8 @@ function todos () {
         name: data.name,
         done: false
       }
+
+      bus.emit('log:debug', 'Creating new todo ' + data.name)
 
       localState.items.push(newItem)
       localState.counter += 1
