@@ -1,17 +1,18 @@
-var nanologger = require('nanologger')
-var mutate = require('xtend/mutable')
+var persist = require('./lib/persist')
+var expose = require('./lib/expose')
+var logger = require('./lib/logger')
 var css = require('sheetify')
 var html = require('bel')
-var choo = require('../')
+var choo = require('./')
 
 css('todomvc-common/base.css')
 css('todomvc-app-css/index.css')
 
 var app = choo()
-app.model(persist)
-app.model(expose)
-app.model(log)
-app.model(todos())
+app.use(persist())
+app.use(expose())
+app.use(logger())
+app.use(todosModel())
 app.router([
   ['/', mainView],
   ['#active', mainView],
@@ -38,65 +39,7 @@ function mainView (state, emit) {
   `
 }
 
-function persist (state, bus) {
-  var savedState = JSON.parse(window.localStorage.getItem('choo-todomvc'))
-  mutate(state, savedState)
-
-  bus.on('*', function (eventName, data) {
-    window.localStorage.setItem('choo-todomvc', JSON.stringify(state))
-  })
-}
-
-function log (state, bus) {
-  var log = nanologger('choo')
-
-  window.getState = function () {
-    console.log(state)
-  }
-
-  bus.on('*', function (eventName, data) {
-    if (!/^log:\w{1,6}/.test(eventName)) log.info(eventName)
-  })
-
-  bus.on('log:debug', function (data) {
-    log.debug(stringify(data))
-  })
-
-  bus.on('log:info', function (data) {
-    log.info(stringify(data))
-  })
-
-  bus.on('log:warn', function (data) {
-    log.warn(stringify(data))
-  })
-
-  bus.on('log:error', function (data) {
-    log.error(stringify(data))
-  })
-
-  bus.on('log:fatal', function (data) {
-    log.fatal(stringify(data))
-  })
-
-  function stringify (data) {
-    if (typeof data === 'string') return data
-    return JSON.stringify(data)
-  }
-}
-
-function expose (state, bus) {
-  window.choo = {}
-  window.choo.state = state
-  window.choo.emit = function (eventName, data) {
-    bus.emit(eventName, data)
-  }
-
-  window.choo.on = function (eventName, listener) {
-    bus.on(eventName, listener)
-  }
-}
-
-function todos () {
+function todosModel () {
   return function (state, bus) {
     var localState = state.todos
     if (!localState) {

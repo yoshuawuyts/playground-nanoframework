@@ -18,13 +18,14 @@ var choo = require('./')
 
 var app = choo()
 
-app.model(function (state, bus) {
-  state.count = 0
-
-  bus.on('*', function () {
-    console.log('arguments', arguments)
+app.use(function logger (state, bus) {
+  bus.on('*', function (messageName, data) {
+    console.log('event', messageName, data)
   })
+})
 
+app.use(function counterModel (state, bus) {
+  state.count = 0
   bus.on('increment', function (count) {
     state.count += count
     bus.emit('render')
@@ -52,8 +53,14 @@ function mainView (state, emit) {
 ### app = framework()
 Create a new instance
 
-### app.model(callback(state, emit))
-Create a new model
+### app.use(callback(state, emitter))
+Call a function and pass it a `state` and `emitter`. `emitter` is an instance
+of [nanobus](https://github.com/yoshuawuyts/nanobus/). You can listen to
+messages by calling `bus.on()` and emit messages by calling `bus.emit()`.
+
+Choo fires messages when certain events happen:
+- __DOMContentLoaded:__ when the DOM has succesfully finished loading
+- __render:__ when the DOM re-renders
 
 ### app.router([opts], routes)
 Register a router
@@ -65,7 +72,7 @@ Start the application
 Start the application and mount it on the given `querySelector`
 
 ### domNode = app.start()
-Start the application. Returns a DOM node.
+Start the application. Returns a DOM node that can be appended to the DOM.
 
 ### app.toString(location, [state])
 Render the application to a string. Useful for rendering on the server

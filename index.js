@@ -26,7 +26,7 @@ function Framework (opts) {
   return {
     router: createRouter,
     toString: toString,
-    model: createModel,
+    use: register,
     mount: mount,
     start: start
   }
@@ -50,7 +50,7 @@ function Framework (opts) {
     })
   }
 
-  function createModel (cb) {
+  function register (cb) {
     cb(state, bus)
   }
 
