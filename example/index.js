@@ -1,7 +1,7 @@
 var nanologger = require('nanologger')
 var mutate = require('xtend/mutable')
-var html = require('../html')
 var css = require('sheetify')
+var html = require('bel')
 var choo = require('../')
 
 var TodoList = require('./elements/todo-list')

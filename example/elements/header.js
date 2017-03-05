@@ -1,4 +1,4 @@
-var html = require('../../html')
+var html = require('bel')
 
 module.exports = header
 

@@ -1,4 +1,4 @@
-var html = require('../../html')
+var html = require('bel')
 var todoItemView = require('./todo-item')
 
 module.exports = todoList

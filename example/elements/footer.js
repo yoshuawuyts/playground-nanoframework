@@ -1,15 +1,11 @@
-var html = require('../../html')
+var html = require('bel')
 
 module.exports = footer
 
 function footer (state, emit) {
-  var activeCount = state.items.filter(function (todo) {
-    return !todo.done
-  }).length
-
-  var hasDone = state.items.filter(function (todo) {
-    return todo.done
-  }).length > 0
+  // TODO: implement in models
+  var activeCount = state.activeCount
+  var hasDone = state.hasDone
 
   return html`
     <footer class="footer">
