@@ -40,7 +40,6 @@ function mainView (state, emit) {
   `
 }
 
-// TODO: figure out if the current todo is being edited
 function todosModel () {
   return function (state, bus) {
     var localState = state.todos
