@@ -13,7 +13,6 @@ var app = choo()
 app.use(persist())
 app.use(expose())
 app.use(logger())
-app.use(entitiesModel())
 app.use(todosModel())
 
 app.router([
@@ -41,21 +40,10 @@ function mainView (state, emit) {
   `
 }
 
-function entitiesModel () {
-  return function (state, bus) {
-    var localState = state.entities
-    if (!localState) {
-      localState = state.entities = {}
-      localState.todos = []
-    }
-  }
-}
-
 // TODO: figure out if the current todo is being edited
 function todosModel () {
   return function (state, bus) {
     var localState = state.todos
-    var entities = state.entities.todos
 
     if (!localState) {
       localState = state.todos = {}
@@ -92,10 +80,8 @@ function todosModel () {
       }
 
       localState.idCounter += 1
-      entities.push(item)
       localState.active.push(item)
       localState.all.push(item)
-      bus.emit('log:debug', 'entities:todos.create', item)
       bus.emit('render')
     }
 
@@ -136,14 +122,14 @@ function todosModel () {
 
     function del (id) {
       var i = null
-      entities.filter(function (todo, j) {
-        if (todo.id === id) i = j
+      var todo = null
+      state.todos.all.forEach(function (_todo, j) {
+        if (_todo.id === id) {
+          i = j
+          todo = _todo
+        }
       })
-      var todo = entities[i]
-      entities.splice(i, 1)
-
-      var index = localState.all.indexOf(todo)
-      if (index !== -1) localState.all.splice(index, 1)
+      state.todos.all.splice(i, 1)
 
       if (todo.done) {
         var done = localState.done
@@ -160,8 +146,8 @@ function todosModel () {
     function deleteCompleted (data) {
       var done = localState.done
       done.forEach(function (todo) {
-        var index = entities.indexOf(todo)
-        entities.splice(index, 1)
+        var index = state.todos.all.indexOf(todo)
+        state.todos.all.splice(index, 1)
       })
       localState.done = []
       bus.emit('render')
@@ -335,7 +321,6 @@ function TodoList (state, emit) {
       ? state.todos.active
       : state.todos.all
 
-  console.log(state.todos)
   var allDone = state.todos.done.length === state.todos.all.length
 
   var nodes = items.map(function (todo) {
