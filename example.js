@@ -86,26 +86,23 @@ function todosModel () {
     }
 
     function edit (id) {
-      var todo = localState.all.filter(function (todo) {
-        return todo.id === id
+      localState.all.forEach(function (todo) {
+        if (todo.id === id) todo.editing = true
       })
-      todo.editing = true
       bus.emit('render')
     }
 
     function unedit (id) {
-      var todo = localState.all.filter(function (todo) {
-        return todo.id === id
+      localState.all.forEach(function (todo) {
+        if (todo.id === id) todo.editing = false
       })
-      todo.editing = false
       bus.emit('render')
     }
 
     function update (newTodo) {
-      localState.editing = null
       var todo = localState.all.filter(function (todo) {
         return todo.id === newTodo.id
-      })
+      })[0]
       var isChanged = newTodo.done === todo.done
       var isDone = todo.done
       mutate(todo, newTodo)
@@ -156,7 +153,7 @@ function todosModel () {
     function toggle (id) {
       var todo = localState.all.filter(function (todo) {
         return todo.id === id
-      })
+      })[0]
       var done = todo.done
       todo.done = !done
       var arr = done ? localState.done : localState.active
@@ -293,7 +290,11 @@ function TodoItem (todo, emit) {
   }
 
   function update (e) {
-    emit('todos:update', { id: todo.id, name: e.target.value })
+    emit('todos:update', {
+      id: todo.id,
+      editing: false,
+      name: e.target.value
+    })
   }
 
   function handleEditKeydown (e) {
