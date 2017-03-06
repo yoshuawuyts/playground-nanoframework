@@ -1,4 +1,5 @@
 var persist = require('./lib/persist')
+var mutate = require('xtend/mutable')
 var expose = require('./lib/expose')
 var logger = require('./lib/logger')
 var css = require('sheetify')
@@ -12,7 +13,9 @@ var app = choo()
 app.use(persist())
 app.use(expose())
 app.use(logger())
+app.use(entitiesModel())
 app.use(todosModel())
+
 app.router([
   ['/', mainView],
   ['#active', mainView],
@@ -21,14 +24,13 @@ app.router([
 app.mount('body')
 
 function mainView (state, emit) {
-  var todos = state.todos
   emit('log:debug', 'Rendering main view')
   return html`
     <body>
       <section class="todoapp">
-        ${Header(todos, emit)}
-        ${TodoList(todos, emit)}
-        ${Footer(todos, emit)}
+        ${Header(state, emit)}
+        ${TodoList(state, emit)}
+        ${Footer(state, emit)}
       </section>
       <footer class="info">
         <p>Double-click to edit a todo</p>
@@ -39,179 +41,213 @@ function mainView (state, emit) {
   `
 }
 
+function entitiesModel () {
+  return function (state, bus) {
+    var localState = state.entities
+    if (!localState) {
+      localState = state.entities = {}
+      localState.todos = []
+    }
+  }
+}
+
+// TODO: figure out if the current todo is being edited
 function todosModel () {
   return function (state, bus) {
     var localState = state.todos
+    var entities = state.entities.todos
+
     if (!localState) {
       localState = state.todos = {}
-      localState.editing = null
-      localState.counter = 0
-      localState.filter = ''
-      localState.items = []
-      localState.hasDone = false
-      localState.activeCount = 0
+
+      localState.active = []
+      localState.done = []
+      localState.all = []
+
+      localState.idCounter = 0
     }
 
     bus.on('DOMContentLoaded', function () {
       bus.emit('log:debug', 'Loading todos model')
-      bus.on('todos:add', add)
-      bus.on('todos:update', update)
-      bus.on('todos:edit', edit)
-      bus.on('todos:toggle', toggle)
-      bus.on('todos:destroy', destroy)
 
-      bus.on('todos:cancelEditing', cancelEditing)
-      bus.on('todos:clearCompleted', clearCompleted)
+      // CRUD
+      bus.on('todos:create', create)
+      bus.on('todos:update', update)
+      bus.on('todos:delete', del)
+
+      // Shorthand
+      bus.on('todos:edit', edit)
+      bus.on('todos:unedit', unedit)
+      bus.on('todos:toggle', toggle)
       bus.on('todos:toggleAll', toggleAll)
-      bus.on('todos:filter', filter)
+      bus.on('todos:deleteCompleted', deleteCompleted)
     })
 
-    function add (data) {
-      var newItem = {
-        id: localState.counter,
+    function create (data) {
+      var item = {
+        id: localState.idCounter,
         name: data.name,
+        editing: false,
         done: false
       }
 
-      bus.emit('log:debug', 'Creating new todo ' + data.name)
-
-      localState.items.push(newItem)
-      localState.counter += 1
-      bus.emit('render')
-    }
-
-    function toggle (id) {
-      var todos = localState.items
-      for (var i = 0, len = todos.length; i < len; i++) {
-        var todo = todos[i]
-        if (todo.id === id) {
-          todo.done = !todo.done
-          break
-        }
-      }
+      localState.idCounter += 1
+      entities.push(item)
+      localState.active.push(item)
+      localState.all.push(item)
+      bus.emit('log:debug', 'entities:todos.create', item)
       bus.emit('render')
     }
 
     function edit (id) {
-      localState.editing = id
+      var todo = localState.all.filter(function (todo) {
+        return todo.id === id
+      })
+      todo.editing = true
       bus.emit('render')
     }
 
-    function cancelEditing () {
+    function unedit (id) {
+      var todo = localState.all.filter(function (todo) {
+        return todo.id === id
+      })
+      todo.editing = false
+      bus.emit('render')
+    }
+
+    function update (newTodo) {
       localState.editing = null
-      bus.emit('render')
-    }
+      var todo = localState.all.filter(function (todo) {
+        return todo.id === newTodo.id
+      })
+      var isChanged = newTodo.done === todo.done
+      var isDone = todo.done
+      mutate(todo, newTodo)
 
-    function update (data) {
-      localState.editing = null
-      var todos = localState.items
-      for (var i = 0, len = todos.length; i < len; i++) {
-        var todo = todos[i]
-        if (todo.id === data.id) {
-          todo.name = data.name
-          break
-        }
+      if (isChanged) {
+        var arr = isDone ? localState.done : localState.active
+        var target = isDone ? localState.active : localState.done
+        var index = arr.indexOf[todo]
+        arr.splice(index, 1)
+        target.push(todo)
       }
       bus.emit('render')
     }
 
-    function destroy (id) {
-      var todos = localState.items
-      for (var i = 0, len = todos.length; i < len; i++) {
-        var todo = todos[i]
-        if (todo.id === id) {
-          todos.splice(i, 1)
-          break
-        }
+    function del (id) {
+      var i = null
+      entities.filter(function (todo, j) {
+        if (todo.id === id) i = j
+      })
+      var todo = entities[i]
+      entities.splice(i, 1)
+
+      var index = localState.all.indexOf(todo)
+      if (index !== -1) localState.all.splice(index, 1)
+
+      if (todo.done) {
+        var done = localState.done
+        var doneIndex = done[todo]
+        done.splice(doneIndex, 1)
+      } else {
+        var active = localState.active
+        var activeIndex = active[todo]
+        active.splice(activeIndex, 1)
       }
       bus.emit('render')
     }
 
-    function clearCompleted (data) {
-      var todos = localState.items
-      for (var i = 0, len = todos.length; i < len; i++) {
-        var todo = todos[i]
-        if (todo.done) {
-          todos.splice(i, 1)
-          len--
-          i--
-        }
-      }
+    function deleteCompleted (data) {
+      var done = localState.done
+      done.forEach(function (todo) {
+        var index = entities.indexOf(todo)
+        entities.splice(index, 1)
+      })
+      localState.done = []
+      bus.emit('render')
+    }
+
+    function toggle (id) {
+      var todo = localState.all.filter(function (todo) {
+        return todo.id === id
+      })
+      var done = todo.done
+      todo.done = !done
+      var arr = done ? localState.done : localState.active
+      var target = done ? localState.active : localState.done
+      var index = arr.indexOf[todo]
+      arr.splice(index, 1)
+      target.push(todo)
       bus.emit('render')
     }
 
     function toggleAll (data) {
-      var todos = localState.items
+      var todos = localState.all
+      var allDone = localState.all.length &&
+        localState.done.length === localState.all.length
 
-      var doneCount = 0
-      for (var i = 0, ilen = todos.length; i < ilen; i++) {
-        var itodo = todos[i]
-        if (itodo.done) doneCount++
+      todos.forEach(function (todo) {
+        todo.done = !allDone
+      })
+
+      if (allDone) {
+        localState.done = localState.all
+        localState.active = []
+      } else {
+        localState.done = []
+        localState.active = localState.all
       }
-      var allDone = (doneCount === todos.length)
 
-      for (var j = 0, jlen = todos.length; j < jlen; j++) {
-        var jtodo = todos[j]
-        jtodo.done = !allDone
-      }
-
-      bus.emit('render')
-    }
-
-    function filter (data) {
-      localState.filter = data.filter
       bus.emit('render')
     }
   }
 }
 
 function Footer (state, emit) {
-  // TODO: implement in models
-  var activeCount = state.activeCount
-  var hasDone = state.hasDone
+  var filter = window.location.hash.replace(/^#/, '')
+  var activeCount = state.todos.active.length
+  var hasDone = state.todos.done.length
 
   return html`
     <footer class="footer">
       <span class="todo-count">
         <strong>${activeCount}</strong>
-        item${state.items.length === 1 ? '' : 's'} left
+        item${state.todos.all === 1 ? '' : 's'} left
       </span>
       <ul class="filters">
-        ${filterButton('All', '', state.filter, emit)}
-        ${filterButton('Active', 'active', state.filter, emit)}
-        ${filterButton('Completed', 'completed', state.filter, emit)}
+        ${filterButton('All', '', filter, emit)}
+        ${filterButton('Active', 'active', filter, emit)}
+        ${filterButton('Completed', 'completed', filter, emit)}
       </ul>
-      ${hasDone ? clearCompletedButton(emit) : ''}
+      ${hasDone ? deleteCompleted(emit) : ''}
     </footer>
   `
 
   function filterButton (name, filter, currentFilter, emit) {
-    var filterClass = filter === currentFilter ? 'selected' : ''
+    var filterClass = filter === currentFilter
+      ? 'selected'
+      : ''
 
     var uri = '#' + name.toLowerCase()
     if (uri === '#all') uri = '/'
     return html`
       <li>
-        <a href=${uri} class=${filterClass} onclick=${applyFilter}>
+        <a href=${uri} class=${filterClass}>
           ${name}
         </a>
       </li>
     `
-
-    function applyFilter () {
-      emit('todos:filter', { filter: filter })
-    }
   }
 
-  function clearCompletedButton (emit) {
+  function deleteCompleted (emit) {
     return html`
-      <button class="clear-completed" onclick=${clearCompleted}>
+      <button class="clear-completed" onclick=${deleteAllCompleted}>
         Clear completed
       </button>
     `
 
-    function clearCompleted () {
-      emit('todos:clearCompleted')
+    function deleteAllCompleted () {
+      emit('todos:deleteCompleted')
     }
   }
 }
@@ -223,28 +259,27 @@ function Header (todos, emit) {
       <input class="new-todo"
         autofocus
         placeholder="What needs to be done?"
-        onkeydown=${addTodo} />
+        onkeydown=${createTodo} />
     </header>
   `
 
-  function addTodo (e) {
+  function createTodo (e) {
     if (e.keyCode === 13) {
-      emit('todos:add', { name: e.target.value })
+      emit('todos:create', { name: e.target.value })
       e.target.value = ''
     }
   }
 }
 
-function TodoItem (todo, editing, emit) {
+function TodoItem (todo, emit) {
   return html`
-    <li class=${classList({ completed: todo.done, editing: editing })}>
+    <li class=${classList({ completed: todo.done, editing: todo.editing })}>
       <div class="view">
         <input
           type="checkbox"
           class="toggle"
           checked="${todo.done}"
-          onchange=${toggle}
-        />
+          onchange=${toggle} />
         <label ondblclick=${edit}>${todo.name}</label>
         <button
           class="destroy"
@@ -255,8 +290,7 @@ function TodoItem (todo, editing, emit) {
         class="edit"
         value=${todo.name}
         onkeydown=${handleEditKeydown}
-        onblur=${update}
-      />
+        onblur=${update} />
     </li>
   `
 
@@ -269,7 +303,7 @@ function TodoItem (todo, editing, emit) {
   }
 
   function destroy (e) {
-    emit('todos:destroy', todo.id)
+    emit('todos:delete', todo.id)
   }
 
   function update (e) {
@@ -277,8 +311,8 @@ function TodoItem (todo, editing, emit) {
   }
 
   function handleEditKeydown (e) {
-    if (e.keyCode === 13) update(e) // Enter
-    else if (e.code === 27) emit('todos:cancelEditing') // Escape
+    if (e.keyCode === 13) update(e)              // Enter
+    else if (e.code === 27) emit('todos:unedit') // Escape
   }
 
   function classList (classes) {
@@ -293,13 +327,20 @@ function TodoItem (todo, editing, emit) {
   }
 }
 
-function TodoList (todos, emit) {
-  var items = todos.items
-  var filteredItems = filterTodos(items, todos.filter)
-  var itemViews = filteredItems.map(function (todo) {
-    return TodoItem(todo, todo.id === todos.editing, emit)
+function TodoList (state, emit) {
+  var filter = window.location.hash.replace(/^#/, '')
+  var items = filter === 'completed'
+    ? state.todos.done
+    : filter === 'active'
+      ? state.todos.active
+      : state.todos.all
+
+  console.log(state.todos)
+  var allDone = state.todos.done.length === state.todos.all.length
+
+  var nodes = items.map(function (todo) {
+    return TodoItem(todo, emit)
   })
-  var allDone = items.filter(isDone).length === items.length
 
   return html`
     <section class="main">
@@ -309,34 +350,15 @@ function TodoList (todos, emit) {
         checked=${allDone}
         onchange=${toggleAll}/>
       <label for="toggle-all" style="display: none;">
-        Mark all as complete
+        Mark all as done
       </label>
       <ul class="todo-list">
-        ${itemViews}
+        ${nodes}
       </ul>
     </section>
   `
 
   function toggleAll () {
     emit('todos:toggleAll')
-  }
-
-  function filterTodos (items, filter) {
-    switch (filter) {
-      case 'active':
-        return items.filter(isNotDone)
-      case 'completed':
-        return items.filter(isDone)
-      default:
-        return items
-    }
-  }
-
-  function isDone (todo) {
-    return todo.done
-  }
-
-  function isNotDone (todo) {
-    return !todo.done
   }
 }
