@@ -80,8 +80,5 @@ Render the application to a string. Useful for rendering on the server
 ### framework/html
 Exposes [bel](https://github.com/shama/bel)
 
-### framework/component
-Exposes [nanocomponent](https://github.com/yoshuawuyts/nanocomponent)
-
 ## License
 [MIT](https://tldrlegal.com/license/mit-license)
